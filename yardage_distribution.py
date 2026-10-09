@@ -205,6 +205,30 @@ def distribution_draws(quantile_predictions: np.ndarray, n_draws: int, seed: int
 
 
 def save_distribution_plot(result: pd.DataFrame, draws: np.ndarray, output_dir: Path) -> None:
+    """Save three representative, smooth yardage distributions for the held-out set."""
+    percentiles = (0.20, 0.50, 0.80)
+    profiles = ("Lower expected gain", "Typical expected gain", "Higher expected gain")
+    chosen = [int(np.abs(result["yardage_mean"] - result["yardage_mean"].quantile(p)).argmin()) for p in percentiles]
+    figure, axes = plt.subplots(1, 3, figsize=(18, 4.8), sharey=True)
+    for axis, index, profile in zip(axes, chosen, profiles):
+        row, samples = result.iloc[index], draws[index]
+        x_grid = np.linspace(np.quantile(samples, .005), np.quantile(samples, .995), 400)
+        density = gaussian_kde(samples, bw_method=.24)(x_grid)
+        axis.plot(x_grid, density, color="#1f77b4", linewidth=2.5, label="XGBoost distribution")
+        axis.fill_between(x_grid, density, color="#1f77b4", alpha=.20)
+        axis.axvline(row["yardage_mean"], color="#0b3558", linewidth=2,
+                    label=f"Predicted mean: {row['yardage_mean']:.1f} yd")
+        axis.axvline(row["prePenaltyPlayResult"], color="#d62728", linestyle="--", linewidth=2,
+                    label=f"Actual: {row['prePenaltyPlayResult']:.1f} yd")
+        axis.set(title=f"{profile}\nGame {int(row['gameId'])}, play {int(row['playId'])}", xlabel="Yards gained")
+        axis.legend(fontsize=8)
+    axes[0].set_ylabel("Probability density")
+    figure.suptitle("Raw-tracking XGBoost: held-out yardage distributions", y=1.03, fontsize=16)
+    figure.tight_layout()
+    figure.savefig(output_dir / "heldout_yardage_distribution_examples.png", dpi=180, bbox_inches="tight")
+    plt.close(figure)
+    return
+
     """Save a readable predicted yardage density for one representative test play."""
     chosen = int(np.abs(result["yardage_mean"] - result["yardage_mean"].median()).argmin())
     row = result.iloc[chosen]
@@ -234,7 +258,7 @@ def plot_saved_distributions(output_dir: Path) -> None:
     result = pd.read_csv(output_dir / "heldout_yardage_distributions.csv")
     draws = np.vstack(result["distribution_samples"].map(json.loads).to_numpy())
     save_distribution_plot(result, draws, output_dir)
-    print(f"Saved probability graph to {output_dir / 'heldout_yardage_distribution_example.png'}")
+    print(f"Saved probability graphs to {output_dir / 'heldout_yardage_distribution_examples.png'}")
 
 
 def train_and_save(table: pd.DataFrame, output_dir: Path, seed: int, n_draws: int) -> None:
@@ -306,7 +330,7 @@ def train_and_save(table: pd.DataFrame, output_dir: Path, seed: int, n_draws: in
     importance.to_csv(output_dir / "feature_importance.csv", index=False)
     print(json.dumps(metrics, indent=2))
     print(f"Saved held-out distributions to {output_dir / 'heldout_yardage_distributions.csv'}")
-    print(f"Saved probability graph to {output_dir / 'heldout_yardage_distribution_example.png'}")
+    print(f"Saved probability graphs to {output_dir / 'heldout_yardage_distribution_examples.png'}")
 
 
 def main() -> None:
