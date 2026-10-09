@@ -231,30 +231,6 @@ def save_distribution_plot(result: pd.DataFrame, draws: np.ndarray, output_dir: 
     figure.tight_layout()
     figure.savefig(output_dir / "heldout_yardage_distribution_examples.png", dpi=180, bbox_inches="tight")
     plt.close(figure)
-    return
-
-    """Save a readable predicted yardage density for one representative test play."""
-    chosen = int(np.abs(result["yardage_mean"] - result["yardage_mean"].median()).argmin())
-    row = result.iloc[chosen]
-    samples = draws[chosen]
-    figure, axis = plt.subplots(figsize=(9, 5))
-    x_grid = np.linspace(np.quantile(samples, .005), np.quantile(samples, .995), 400)
-    density = gaussian_kde(samples, bw_method=.24)(x_grid)
-    axis.plot(x_grid, density, color="#1f77b4", linewidth=2.5, label="XGBoost distribution")
-    axis.fill_between(x_grid, density, color="#1f77b4", alpha=.25)
-    axis.axvline(row["yardage_p50"], color="#0b3558", linewidth=2, label=f"Median: {row['yardage_p50']:.1f} yd")
-    axis.axvspan(row["yardage_p10"], row["yardage_p90"], color="#ffb000", alpha=.25,
-                 label=f"10â€“90% interval: {row['yardage_p10']:.1f} to {row['yardage_p90']:.1f} yd")
-    axis.axvline(row["prePenaltyPlayResult"], color="#d62728", linestyle="--", linewidth=2,
-                 label=f"Actual: {row['prePenaltyPlayResult']:.1f} yd")
-    axis.axvline(row["yardsToGo"], color="#333333", linestyle=":", linewidth=1.5,
-                 label=f"First-down line: {row['yardsToGo']:.0f} yd")
-    axis.set(title=f"Predicted pre-penalty yardage distribution\nGame {int(row['gameId'])}, play {int(row['playId'])}",
-             xlabel="Yards gained", ylabel="Probability density")
-    axis.legend(fontsize=9)
-    figure.tight_layout()
-    figure.savefig(output_dir / "heldout_yardage_distribution_example.png", dpi=180)
-    plt.close(figure)
 
 
 def plot_saved_distributions(output_dir: Path) -> None:
@@ -356,5 +332,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
 
 
