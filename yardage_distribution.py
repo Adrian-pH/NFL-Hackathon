@@ -206,11 +206,15 @@ def distribution_draws(quantile_predictions: np.ndarray, n_draws: int, seed: int
 
 def save_distribution_plot(result: pd.DataFrame, draws: np.ndarray, output_dir: Path) -> None:
     """Save three representative, smooth yardage distributions for the held-out set."""
-    percentiles = (0.20, 0.50, 0.80)
-    profiles = ("Lower expected gain", "Typical expected gain", "Higher expected gain")
-    chosen = [int(np.abs(result["yardage_mean"] - result["yardage_mean"].quantile(p)).argmin()) for p in percentiles]
+    comparison_plays = ((2021090900, 97), (2021090900, 137), (2021090900, 187))
+    chosen = []
+    for game_id, play_id in comparison_plays:
+        matches = result.index[(result["gameId"].eq(game_id)) & (result["playId"].eq(play_id))]
+        if len(matches) != 1:
+            raise ValueError(f"Comparison play {game_id}/{play_id} is not in the held-out results.")
+        chosen.append(int(matches[0]))
     figure, axes = plt.subplots(1, 3, figsize=(18, 4.8), sharey=True)
-    for axis, index, profile in zip(axes, chosen, profiles):
+    for axis, index in zip(axes, chosen):
         row, samples = result.iloc[index], draws[index]
         x_grid = np.linspace(np.quantile(samples, .005), np.quantile(samples, .995), 400)
         density = gaussian_kde(samples, bw_method=.24)(x_grid)
@@ -220,7 +224,7 @@ def save_distribution_plot(result: pd.DataFrame, draws: np.ndarray, output_dir: 
                     label=f"Predicted mean: {row['yardage_mean']:.1f} yd")
         axis.axvline(row["prePenaltyPlayResult"], color="#d62728", linestyle="--", linewidth=2,
                     label=f"Actual: {row['prePenaltyPlayResult']:.1f} yd")
-        axis.set(title=f"{profile}\nGame {int(row['gameId'])}, play {int(row['playId'])}", xlabel="Yards gained")
+        axis.set(title=f"Game {int(row['gameId'])}, play {int(row['playId'])}", xlabel="Yards gained")
         axis.legend(fontsize=8)
     axes[0].set_ylabel("Probability density")
     figure.suptitle("Raw-tracking XGBoost: held-out yardage distributions", y=1.03, fontsize=16)
